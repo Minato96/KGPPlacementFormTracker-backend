@@ -121,7 +121,6 @@ function htmlResponse(
         "Cache-Control":
           "no-store",
 
-<<<<<<< HEAD
         /*
          * These pages only ever need the Cashfree SDK plus
          * their own inline script, styles and same-origin API
@@ -141,8 +140,6 @@ function htmlResponse(
         "Referrer-Policy":
           "no-referrer",
 
-=======
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         ...cors,
       },
     }
@@ -150,7 +147,6 @@ function htmlResponse(
 }
 
 
-<<<<<<< HEAD
 function escapeHtml(
   value
 ) {
@@ -170,8 +166,6 @@ function escapeHtml(
 }
 
 
-=======
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 function isValidEmail(
   email
 ) {
@@ -325,7 +319,6 @@ function safeCompare(
     return false;
   }
 
-<<<<<<< HEAD
   const encoder =
     new TextEncoder();
 
@@ -335,27 +328,16 @@ function safeCompare(
   const right =
     encoder.encode(b);
 
-=======
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
   let result = 0;
 
   for (
     let i = 0;
-<<<<<<< HEAD
     i < left.length;
     i++
   ) {
     result |=
       left[i] ^
       right[i];
-=======
-    i < a.length;
-    i++
-  ) {
-    result |=
-      a.charCodeAt(i) ^
-      b.charCodeAt(i);
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
   }
 
   return (
@@ -366,7 +348,6 @@ function safeCompare(
 
 /*
  * ============================================================
-<<<<<<< HEAD
  * INSTALLATION SECRETS
  * ============================================================
  *
@@ -613,8 +594,6 @@ function getClientIp(request) {
 
 /*
  * ============================================================
-=======
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
  * SUPABASE USER VERIFICATION
  * ============================================================
  *
@@ -671,7 +650,6 @@ async function getSupabaseUser(
 
 /*
  * ============================================================
-<<<<<<< HEAD
  * PRO ENTITLEMENT TOKEN
  * ============================================================
  *
@@ -831,8 +809,6 @@ async function issueLicenseToken(
 
 /*
  * ============================================================
-=======
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
  * MAIN WORKER
  * ============================================================
  */
@@ -854,7 +830,6 @@ export default {
 
     /*
      * ========================================================
-<<<<<<< HEAD
      * FAIL FAST ON MISSING SIGNING KEY
      * ========================================================
      *
@@ -887,8 +862,6 @@ export default {
 
     /*
      * ========================================================
-=======
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
      * CORS PREFLIGHT
      * ========================================================
      */
@@ -946,7 +919,6 @@ export default {
 
     /*
      * ========================================================
-<<<<<<< HEAD
      * REGISTER INSTALLATION
      * ========================================================
      *
@@ -1156,8 +1128,6 @@ export default {
 
     /*
      * ========================================================
-=======
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
      * CREATE ORDER
      * ========================================================
      *
@@ -1166,10 +1136,7 @@ export default {
      * Body:
      * {
      *   installation_id: "...",
-<<<<<<< HEAD
      *   install_secret: "...",
-=======
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
      *   email: "user@example.com"
      * }
      *
@@ -1212,12 +1179,9 @@ export default {
       const installationId =
         body?.installation_id;
 
-<<<<<<< HEAD
       const installSecret =
         body?.install_secret;
 
-=======
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       const email =
         body?.email
           ?.trim()
@@ -1241,12 +1205,8 @@ export default {
             error:
               "Invalid installation_id",
           },
-<<<<<<< HEAD
           400,
           request
-=======
-          400
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         );
       }
 
@@ -1268,7 +1228,6 @@ export default {
             error:
               "Please provide a valid email address",
           },
-<<<<<<< HEAD
           400,
           request
         );
@@ -1346,9 +1305,6 @@ export default {
           },
           429,
           request
-=======
-          400
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         );
       }
 
@@ -1581,7 +1537,6 @@ export default {
        * PREVENT DUPLICATE PENDING ORDERS
        * ------------------------------------------------------
        *
-<<<<<<< HEAD
        * A second click during the same payment attempt must not
        * create another Cashfree order. This is a hard block for as
        * long as an order is PENDING — a 10-minute window used to
@@ -1598,13 +1553,6 @@ export default {
         30 * 60 * 1000;
 
 
-=======
-       * A second click during the same payment attempt
-       * will not create another Cashfree order.
-       * ------------------------------------------------------
-       */
-
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       const recentPendingOrder =
         await db
           .prepare(
@@ -1620,11 +1568,7 @@ export default {
           .bind(
             licenseId,
             Date.now() -
-<<<<<<< HEAD
             PENDING_ORDER_STALE_MS
-=======
-            10 * 60 * 1000
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
           )
           .first();
 
@@ -1646,12 +1590,8 @@ export default {
             order_id:
               recentPendingOrder.order_id,
           },
-<<<<<<< HEAD
           409,
           request
-=======
-          409
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         );
       }
 
@@ -2156,7 +2096,6 @@ const API_BASE =
 const installationId =
   ${safeInstallationId};
 
-<<<<<<< HEAD
 /*
  * The installation secret arrives in the URL fragment, which
  * browsers never send to the server and never put in Referer.
@@ -2176,8 +2115,6 @@ const installSecret =
       : "";
   })();
 
-=======
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 const button =
   document.getElementById(
     "payButton"
@@ -2290,12 +2227,9 @@ async function createOrder(){
               installation_id:
                 installationId,
 
-<<<<<<< HEAD
               install_secret:
                 installSecret,
 
-=======
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
               email:
                 email
             })
@@ -2506,7 +2440,6 @@ button.addEventListener(
         );
 
 
-<<<<<<< HEAD
       /*
        * Only server-generated order IDs are ever accepted. This
        * keeps arbitrary input out of the page below.
@@ -2521,10 +2454,6 @@ button.addEventListener(
         !ORDER_ID_PATTERN.test(
           orderId
         )
-=======
-      if (
-        !orderId
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       ) {
         return htmlResponse(
           `
@@ -2539,11 +2468,7 @@ text-align:center
 >
 <h1>KGP Placement Form Tracker</h1>
 <h2>Payment Error</h2>
-<<<<<<< HEAD
 <p>Missing or invalid order ID.</p>
-=======
-<p>Missing order ID.</p>
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 </body>
 </html>
 `,
@@ -2641,7 +2566,6 @@ text-align:center
           "SUCCESS";
 
 
-<<<<<<< HEAD
         /*
          * ----------------------------------------------------
          * DELIBERATELY READ-ONLY
@@ -2657,26 +2581,6 @@ text-align:center
          * what Cashfree says.
          * ----------------------------------------------------
          */
-=======
-        await db
-          .prepare(
-            `UPDATE orders
-             SET
-               cashfree_payment_id = ?,
-               status = 'PAID',
-               paid_at = ?
-             WHERE order_id = ?`
-          )
-          .bind(
-            successfulPayment.cf_payment_id ||
-            null,
-
-            Date.now(),
-
-            orderId
-          )
-          .run();
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 
       } else if (
         pendingPayment
@@ -2835,11 +2739,7 @@ Order ID
 
 <br><br>
 
-<<<<<<< HEAD
 ${escapeHtml(orderId)}
-=======
-${orderId}
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 
 </div>
 
@@ -3141,7 +3041,6 @@ if (
             error:
               "Cashfree payment is not confirmed as successful",
           },
-<<<<<<< HEAD
           400,
           request
         );
@@ -3181,9 +3080,6 @@ if (
           },
           400,
           request
-=======
-          400
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         );
       }
 
@@ -3319,7 +3215,6 @@ if (
       }
 
 
-<<<<<<< HEAD
       /*
        * The confirmed payment must actually cover the order.
        * Cashfree returns order_amount in rupees.
@@ -3374,8 +3269,6 @@ if (
       }
 
 
-=======
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       const paidAt =
         Date.now();
 
@@ -3471,7 +3364,6 @@ if (
      *
      * Body:
      * {
-<<<<<<< HEAD
      *   installation_id: "...",
      *   install_secret: "..."
      * }
@@ -3480,10 +3372,6 @@ if (
      * entitlement token. The extension verifies that signature
      * before unlocking PRO, so editing chrome.storage.local is no
      * longer enough to spoof an unlock.
-=======
-     *   installation_id: "..."
-     * }
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
      * ========================================================
      */
 
@@ -3511,12 +3399,8 @@ if (
             error:
               "Invalid JSON body",
           },
-<<<<<<< HEAD
           400,
           request
-=======
-          400
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         );
       }
 
@@ -3524,12 +3408,9 @@ if (
       const installationId =
         body?.installation_id;
 
-<<<<<<< HEAD
       const installSecret =
         body?.install_secret;
 
-=======
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 
       if (
         !isValidInstallationId(
@@ -3545,7 +3426,6 @@ if (
             error:
               "Invalid installation_id",
           },
-<<<<<<< HEAD
           400,
           request
         );
@@ -3611,9 +3491,6 @@ if (
           },
           401,
           request
-=======
-          400
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         );
       }
 
@@ -3648,7 +3525,6 @@ if (
         !result.license_id
       ) {
 
-<<<<<<< HEAD
         return jsonResponse(
           {
             success:
@@ -3663,18 +3539,6 @@ if (
           200,
           request
         );
-=======
-        return jsonResponse({
-          success:
-            true,
-
-          pro:
-            false,
-
-          status:
-            "NOT_FOUND",
-        });
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -3688,7 +3552,6 @@ if (
 
 
       /*
-<<<<<<< HEAD
        * Update usage timestamps.
        *
        * These are coalesced to at most once every 10 minutes so a
@@ -3829,49 +3692,6 @@ if (
         200,
         request
       );
-=======
-       * Update usage timestamp.
-       */
-
-      await db
-        .prepare(
-          `UPDATE installations
-           SET
-             last_seen_at = ?
-           WHERE installation_id = ?`
-        )
-        .bind(
-          now,
-          installationId
-        )
-        .run();
-
-
-      await db
-        .prepare(
-          `UPDATE licenses
-           SET
-             last_verified_at = ?
-           WHERE license_id = ?`
-        )
-        .bind(
-          now,
-          result.license_id
-        )
-        .run();
-
-
-      return jsonResponse({
-        success:
-          true,
-
-        pro:
-          isPro,
-
-        status:
-          result.status,
-      });
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
     }
 
 
@@ -3933,24 +3753,17 @@ if (
               "Invalid JSON body",
           },
           400
-<<<<<<< HEAD
             request
           );
-=======
-        );
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
       const installationId =
         body?.installation_id;
 
-<<<<<<< HEAD
       const installSecret =
         body?.install_secret;
 
-=======
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 
       if (
         !isValidInstallationId(
@@ -3966,7 +3779,6 @@ if (
             error:
               "Invalid installation_id",
           },
-<<<<<<< HEAD
           400,
           request
         );
@@ -4037,9 +3849,6 @@ if (
           },
           401,
           request
-=======
-          400
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         );
       }
 
@@ -4063,12 +3872,8 @@ if (
               "Missing Supabase access token",
           },
           401
-<<<<<<< HEAD
             request
           );
-=======
-        );
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -4107,12 +3912,8 @@ if (
               "Unable to verify Supabase identity",
           },
           502
-<<<<<<< HEAD
             request
           );
-=======
-        );
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -4132,12 +3933,8 @@ if (
               "Invalid or expired Supabase session",
           },
           401
-<<<<<<< HEAD
             request
           );
-=======
-        );
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -4203,12 +4000,8 @@ if (
               "Your linked PRO license is not active.",
           },
           403
-<<<<<<< HEAD
             request
           );
-=======
-        );
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -4268,12 +4061,8 @@ if (
               "No active PRO license was found for this email address.",
           },
           404
-<<<<<<< HEAD
             request
           );
-=======
-        );
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -4352,12 +4141,8 @@ if (
                   "LICENSE_ALREADY_CLAIMED",
               },
               409
-<<<<<<< HEAD
                 request
               );
-=======
-            );
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
           }
         }
 
@@ -4378,12 +4163,8 @@ if (
               "LICENSE_OWNED_BY_ANOTHER_USER",
           },
           403
-<<<<<<< HEAD
             request
           );
-=======
-        );
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -4433,12 +4214,8 @@ if (
               "INSTALLATION_ALREADY_LINKED",
           },
           409
-<<<<<<< HEAD
             request
           );
-=======
-        );
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -4595,7 +4372,6 @@ if (
         .run();
 
 
-<<<<<<< HEAD
       return jsonResponse(
         {
           success:
@@ -4629,24 +4405,6 @@ if (
         200,
         request
       );
-=======
-      return jsonResponse({
-        success:
-          true,
-
-        pro:
-          true,
-
-        status:
-          "ACTIVE",
-
-        license_id:
-          license.license_id,
-
-        installation_id:
-          installationId,
-      });
->>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
     }
 
 
