@@ -121,6 +121,28 @@ function htmlResponse(
         "Cache-Control":
           "no-store",
 
+<<<<<<< HEAD
+        /*
+         * These pages only ever need the Cashfree SDK plus
+         * their own inline script, styles and same-origin API
+         * calls. Locking this down means a reflected value in the
+         * markup cannot execute.
+         *
+         * connect-src must include 'self': the checkout page
+         * calls back into this Worker to create the order.
+         */
+
+        "Content-Security-Policy":
+          "default-src 'none'; script-src https://sdk.cashfree.com 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self' https://api.cashfree.com https://sdk.cashfree.com; img-src 'self' https://sdk.cashfree.com data:; frame-src https://sdk.cashfree.com https://api.cashfree.com https://payments.cashfree.com; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+
+        "X-Content-Type-Options":
+          "nosniff",
+
+        "Referrer-Policy":
+          "no-referrer",
+
+=======
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         ...cors,
       },
     }
@@ -128,6 +150,28 @@ function htmlResponse(
 }
 
 
+<<<<<<< HEAD
+function escapeHtml(
+  value
+) {
+  return String(
+    value ?? ""
+  ).replace(
+    /[&<>"']/g,
+    char =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[char]
+  );
+}
+
+
+=======
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 function isValidEmail(
   email
 ) {
@@ -281,16 +325,37 @@ function safeCompare(
     return false;
   }
 
+<<<<<<< HEAD
+  const encoder =
+    new TextEncoder();
+
+  const left =
+    encoder.encode(a);
+
+  const right =
+    encoder.encode(b);
+
+=======
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
   let result = 0;
 
   for (
     let i = 0;
+<<<<<<< HEAD
+    i < left.length;
+    i++
+  ) {
+    result |=
+      left[i] ^
+      right[i];
+=======
     i < a.length;
     i++
   ) {
     result |=
       a.charCodeAt(i) ^
       b.charCodeAt(i);
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
   }
 
   return (
@@ -301,6 +366,255 @@ function safeCompare(
 
 /*
  * ============================================================
+<<<<<<< HEAD
+ * INSTALLATION SECRETS
+ * ============================================================
+ *
+ * An installation_id is not a credential: it is stored in the
+ * extension, appears in the /checkout URL and is sent to
+ * Cashfree. Every installation therefore gets a companion
+ * random secret, issued once at registration.
+ *
+ * Only sha256(secret) is stored, so a database leak does not
+ * hand out working credentials.
+ * ============================================================
+ */
+
+function randomHex(bytes) {
+  const buffer =
+    new Uint8Array(bytes);
+
+  crypto.getRandomValues(
+    buffer
+  );
+
+  return [
+    ...buffer,
+  ]
+    .map(
+      byte =>
+        byte
+          .toString(16)
+          .padStart(2, "0")
+    )
+    .join("");
+}
+
+
+function isValidInstallSecret(
+  value
+) {
+  return (
+    typeof value ===
+      "string" &&
+    /^[0-9a-f]{64}$/.test(
+      value
+    )
+  );
+}
+
+
+async function hashInstallSecret(
+  secret
+) {
+  const digest =
+    await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(
+        secret
+      )
+    );
+
+  return [
+    ...new Uint8Array(
+      digest
+    ),
+  ]
+    .map(
+      byte =>
+        byte
+          .toString(16)
+          .padStart(2, "0")
+    )
+    .join("");
+}
+
+
+/*
+ * Confirm the caller owns this installation.
+ *
+ * Returns one of:
+ *   "ok"     — registered, secret matches
+ *   "legacy" — no secret on record yet: an installation created
+ *              before secrets existed, or by an extension version
+ *              that predates them. Allowed so a worker deploy does
+ *              not lock existing paying users out; these installs
+ *              gain full protection the first time the updated
+ *              extension registers them.
+ *   "deny"   — a secret is on record and the supplied one is
+ *              missing or wrong. Someone is using an id they do
+ *              not own.
+ */
+
+async function verifyInstallSecret(
+  db,
+  installationId,
+  secret
+) {
+  const row =
+    await db
+      .prepare(
+        `SELECT secret_hash
+         FROM installation_secrets
+         WHERE installation_id = ?
+         LIMIT 1`
+      )
+      .bind(
+        installationId
+      )
+      .first();
+
+  if (!row) {
+    return "legacy";
+  }
+
+  if (
+    !isValidInstallSecret(
+      secret
+    )
+  ) {
+    return "deny";
+  }
+
+  const candidate =
+    await hashInstallSecret(
+      secret
+    );
+
+  return safeCompare(
+    candidate,
+    row.secret_hash
+  )
+    ? "ok"
+    : "deny";
+}
+
+
+/*
+ * ============================================================
+ * RATE LIMITING
+ * ============================================================
+ *
+ * Fixed-window counters. `consumeRateLimit` returns false when
+ * the caller has exceeded `limit` within `windowMs`.
+ *
+ * Fails open on database errors: a D1 hiccup should not lock
+ * paying users out of their license.
+ * ============================================================
+ */
+
+async function consumeRateLimit(
+  db,
+  key,
+  limit,
+  windowMs
+) {
+  const now =
+    Date.now();
+
+  try {
+    const row =
+      await db
+        .prepare(
+          `SELECT
+             count,
+             window_start
+           FROM rate_limits
+           WHERE rl_key = ?
+           LIMIT 1`
+        )
+        .bind(key)
+        .first();
+
+    if (
+      !row ||
+      now -
+        Number(
+          row.window_start
+        ) >=
+        windowMs
+    ) {
+      await db
+        .prepare(
+          `INSERT INTO rate_limits
+           (
+             rl_key,
+             count,
+             window_start
+           )
+           VALUES (?, 1, ?)
+           ON CONFLICT(rl_key)
+           DO UPDATE SET
+             count = 1,
+             window_start = excluded.window_start`
+        )
+        .bind(
+          key,
+          now
+        )
+        .run();
+
+      return true;
+    }
+
+    if (
+      Number(row.count) >=
+      limit
+    ) {
+      return false;
+    }
+
+    await db
+      .prepare(
+        `UPDATE rate_limits
+         SET count = count + 1
+         WHERE rl_key = ?`
+      )
+      .bind(key)
+      .run();
+
+    return true;
+
+  } catch (error) {
+
+    console.error(
+      "Rate limit check failed (failing open):",
+      error
+    );
+
+    return true;
+  }
+}
+
+
+/*
+ * Cloudflare sets CF-Connecting-IP on every edge request, so it
+ * cannot be spoofed by the client.
+ */
+
+function getClientIp(request) {
+  return (
+    request.headers.get(
+      "CF-Connecting-IP"
+    ) || "unknown"
+  );
+}
+
+
+/*
+ * ============================================================
+=======
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
  * SUPABASE USER VERIFICATION
  * ============================================================
  *
@@ -357,6 +671,168 @@ async function getSupabaseUser(
 
 /*
  * ============================================================
+<<<<<<< HEAD
+ * PRO ENTITLEMENT TOKEN
+ * ============================================================
+ *
+ * The ERP notice data never leaves the client, so the Worker
+ * cannot enforce the paywall by withholding rows. Instead the
+ * Worker signs a short-lived statement of entitlement and the
+ * extension verifies that signature before unlocking the PRO
+ * columns.
+ *
+ * Signing is ECDSA P-256. The private key lives only in the
+ * Worker; the extension ships the public key. A user who edits
+ * chrome.storage.local can flip a boolean, but cannot mint a
+ * token, so the unlock cannot be forged offline — and unlike
+ * HMAC, nothing in the extension is enough to produce one.
+ *
+ * Format: base64url(payload).base64url(signature)
+ * ============================================================
+ */
+
+const LICENSE_TOKEN_TTL_MS =
+  6 * 60 * 60 * 1000;
+
+
+function getSigningKeyJwk(
+  env
+) {
+  if (
+    !env.LICENSE_SIGNING_KEY
+  ) {
+    throw new Error(
+      "Missing LICENSE_SIGNING_KEY secret"
+    );
+  }
+
+  return JSON.parse(
+    env.LICENSE_SIGNING_KEY
+  );
+}
+
+
+function bytesToBase64Url(
+  bytes
+) {
+  let binary = "";
+
+  for (
+    const byte of bytes
+  ) {
+    binary +=
+      String.fromCharCode(
+        byte
+      );
+  }
+
+  return btoa(binary)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
+}
+
+
+/*
+ * Signs with an ECDSA P-256 private key.
+ *
+ * Asymmetric on purpose. HMAC would have been simpler, but the
+ * extension has to verify the token, so it would need the same
+ * secret — and anything shipped inside an extension can be read
+ * by whoever unpacks it. With ECDSA the extension only ever
+ * holds the matching public key, so a user who edits the
+ * extension still cannot mint a token.
+ */
+
+async function signLicenseToken(
+  claims,
+  env
+) {
+  const privateKey =
+    await crypto.subtle.importKey(
+      "jwk",
+      getSigningKeyJwk(env),
+      {
+        name: "ECDSA",
+        namedCurve: "P-256",
+      },
+      false,
+      ["sign"]
+    );
+
+  const payload =
+    bytesToBase64Url(
+      new TextEncoder().encode(
+        JSON.stringify(
+          claims
+        )
+      )
+    );
+
+  const signature =
+    await crypto.subtle.sign(
+      {
+        name: "ECDSA",
+        hash: "SHA-256",
+      },
+      privateKey,
+      new TextEncoder().encode(
+        payload
+      )
+    );
+
+  return (
+    payload +
+    "." +
+    bytesToBase64Url(
+      new Uint8Array(
+        signature
+      )
+    )
+  );
+}
+
+
+/*
+ * Builds the token for an ACTIVE license bound to one
+ * installation. The installation_id is inside the signed payload
+ * so a token cannot be replayed on a different browser.
+ */
+
+async function issueLicenseToken(
+  licenseId,
+  installationId,
+  env
+) {
+  const now =
+    Date.now();
+
+  return await signLicenseToken(
+    {
+      v: 1,
+
+      license_id:
+        licenseId,
+
+      installation_id:
+        installationId,
+
+      iat: now,
+
+      exp:
+        now +
+        LICENSE_TOKEN_TTL_MS,
+    },
+
+    env
+  );
+}
+
+
+/*
+ * ============================================================
+=======
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
  * MAIN WORKER
  * ============================================================
  */
@@ -378,6 +854,41 @@ export default {
 
     /*
      * ========================================================
+<<<<<<< HEAD
+     * FAIL FAST ON MISSING SIGNING KEY
+     * ========================================================
+     *
+     * Every entitlement decision depends on this key. Missing it
+     * must be a deployment error, not a silent downgrade to
+     * "everyone is free" or, worse, an unsigned token.
+     */
+
+    if (
+      !env.LICENSE_SIGNING_KEY
+    ) {
+
+      console.error(
+        "LICENSE_SIGNING_KEY is not configured"
+      );
+
+
+      return jsonResponse(
+        {
+          success: false,
+
+          error:
+            "Server is not configured",
+        },
+        500,
+        request
+      );
+    }
+
+
+    /*
+     * ========================================================
+=======
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
      * CORS PREFLIGHT
      * ========================================================
      */
@@ -435,6 +946,218 @@ export default {
 
     /*
      * ========================================================
+<<<<<<< HEAD
+     * REGISTER INSTALLATION
+     * ========================================================
+     *
+     * POST /register-installation
+     *
+     * Body:
+     * {
+     *   installation_id: "kgp_install_<uuid>"
+     * }
+     *
+     * Returns:
+     * {
+     *   install_secret: "<64 hex chars>"   // shown exactly once
+     * }
+     *
+     * The secret is returned only when it is first minted. If the
+     * client loses it, the installation is abandoned and a new
+     * one is registered — this keeps the endpoint from becoming a
+     * way to reset an installation someone else already owns.
+     * ========================================================
+     */
+
+    if (
+      request.method ===
+      "POST" &&
+      url.pathname ===
+      "/register-installation"
+    ) {
+
+      const allowed =
+        await consumeRateLimit(
+          db,
+          `register:${getClientIp(request)}`,
+          20,
+          60 * 60 * 1000
+        );
+
+
+      if (!allowed) {
+
+        return jsonResponse(
+          {
+            success: false,
+
+            error:
+              "Too many registrations. Please try again later.",
+          },
+          429,
+          request
+        );
+      }
+
+
+      let body;
+
+      try {
+
+        body =
+          await request.json();
+
+      } catch {
+
+        return jsonResponse(
+          {
+            success: false,
+
+            error:
+              "Invalid JSON body",
+          },
+          400,
+          request
+        );
+      }
+
+
+      const installationId =
+        body?.installation_id;
+
+
+      if (
+        !isValidInstallationId(
+          installationId
+        )
+      ) {
+
+        return jsonResponse(
+          {
+            success: false,
+
+            error:
+              "Invalid installation_id",
+          },
+          400,
+          request
+        );
+      }
+
+
+      const existing =
+        await db
+          .prepare(
+            `SELECT installation_id
+             FROM installation_secrets
+             WHERE installation_id = ?
+             LIMIT 1`
+          )
+          .bind(
+            installationId
+          )
+          .first();
+
+
+      if (existing) {
+
+        /*
+         * Already registered. Do NOT re-issue: that would let
+         * anyone who learns an installation_id rotate its
+         * credential.
+         */
+
+        return jsonResponse(
+          {
+            success: false,
+
+            error:
+              "This installation is already registered.",
+
+            code:
+              "ALREADY_REGISTERED",
+          },
+          409,
+          request
+        );
+      }
+
+
+      const secret =
+        randomHex(32);
+
+
+      const secretHash =
+        await hashInstallSecret(
+          secret
+        );
+
+
+      const now =
+        Date.now();
+
+
+      await db
+        .prepare(
+          `INSERT INTO installations
+           (
+             installation_id,
+             license_id,
+             created_at,
+             last_seen_at
+           )
+           VALUES (?, NULL, ?, ?)
+           ON CONFLICT(installation_id)
+           DO NOTHING`
+        )
+        .bind(
+          installationId,
+          now,
+          now
+        )
+        .run();
+
+
+      await db
+        .prepare(
+          `INSERT INTO installation_secrets
+           (
+             installation_id,
+             secret_hash,
+             created_at
+           )
+           VALUES (?, ?, ?)
+           ON CONFLICT(installation_id)
+           DO NOTHING`
+        )
+        .bind(
+          installationId,
+          secretHash,
+          now
+        )
+        .run();
+
+
+      return jsonResponse(
+        {
+          success: true,
+
+          installation_id:
+            installationId,
+
+          install_secret:
+            secret,
+        },
+        200,
+        request
+      );
+    }
+
+
+    /*
+     * ========================================================
+=======
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
      * CREATE ORDER
      * ========================================================
      *
@@ -443,6 +1166,10 @@ export default {
      * Body:
      * {
      *   installation_id: "...",
+<<<<<<< HEAD
+     *   install_secret: "...",
+=======
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
      *   email: "user@example.com"
      * }
      *
@@ -485,6 +1212,12 @@ export default {
       const installationId =
         body?.installation_id;
 
+<<<<<<< HEAD
+      const installSecret =
+        body?.install_secret;
+
+=======
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       const email =
         body?.email
           ?.trim()
@@ -508,7 +1241,12 @@ export default {
             error:
               "Invalid installation_id",
           },
+<<<<<<< HEAD
+          400,
+          request
+=======
           400
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         );
       }
 
@@ -530,7 +1268,87 @@ export default {
             error:
               "Please provide a valid email address",
           },
+<<<<<<< HEAD
+          400,
+          request
+        );
+      }
+
+
+      /*
+       * ------------------------------------------------------
+       * AUTHENTICATE THE INSTALLATION
+       * ------------------------------------------------------
+       *
+       * Creating an order mints a license and a real Cashfree
+       * order, so it requires proof that the caller owns this
+       * installation.
+       * ------------------------------------------------------
+       */
+
+      const secretCheck =
+        await verifyInstallSecret(
+          db,
+          installationId,
+          installSecret
+        );
+
+
+      /*
+       * "legacy" is allowed through: those installations have no
+       * secret on record yet. "deny" means an id is being used
+       * without its secret.
+       */
+
+      if (
+        secretCheck ===
+        "deny"
+      ) {
+
+        return jsonResponse(
+          {
+            success:
+              false,
+
+            error:
+              "Invalid installation credentials",
+          },
+          401,
+          request
+        );
+      }
+
+
+      /*
+       * ------------------------------------------------------
+       * RATE LIMIT
+       * ------------------------------------------------------
+       */
+
+      const rateOk =
+        await consumeRateLimit(
+          db,
+          `create-order:${installationId}`,
+          10,
+          60 * 60 * 1000
+        );
+
+
+      if (!rateOk) {
+
+        return jsonResponse(
+          {
+            success:
+              false,
+
+            error:
+              "Too many checkout attempts. Please wait before trying again.",
+          },
+          429,
+          request
+=======
           400
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         );
       }
 
@@ -763,11 +1581,30 @@ export default {
        * PREVENT DUPLICATE PENDING ORDERS
        * ------------------------------------------------------
        *
+<<<<<<< HEAD
+       * A second click during the same payment attempt must not
+       * create another Cashfree order. This is a hard block for as
+       * long as an order is PENDING — a 10-minute window used to
+       * let a slow checkout produce a second chargeable order.
+       *
+       * The lock is bounded by a staleness cutoff so an abandoned
+       * checkout cannot wedge the license forever. It sits above
+       * Cashfree's hosted-checkout expiry, so a live session is
+       * always still blocked.
+       * ------------------------------------------------------
+       */
+
+      const PENDING_ORDER_STALE_MS =
+        30 * 60 * 1000;
+
+
+=======
        * A second click during the same payment attempt
        * will not create another Cashfree order.
        * ------------------------------------------------------
        */
 
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       const recentPendingOrder =
         await db
           .prepare(
@@ -783,7 +1620,11 @@ export default {
           .bind(
             licenseId,
             Date.now() -
+<<<<<<< HEAD
+            PENDING_ORDER_STALE_MS
+=======
             10 * 60 * 1000
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
           )
           .first();
 
@@ -805,7 +1646,12 @@ export default {
             order_id:
               recentPendingOrder.order_id,
           },
+<<<<<<< HEAD
+          409,
+          request
+=======
           409
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         );
       }
 
@@ -1310,6 +2156,28 @@ const API_BASE =
 const installationId =
   ${safeInstallationId};
 
+<<<<<<< HEAD
+/*
+ * The installation secret arrives in the URL fragment, which
+ * browsers never send to the server and never put in Referer.
+ */
+const installSecret =
+  (function(){
+
+    const match =
+      /(?:^|[#&])s=([0-9a-f]{64})/
+        .exec(
+          window.location.hash ||
+          ""
+        );
+
+    return match
+      ? match[1]
+      : "";
+  })();
+
+=======
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 const button =
   document.getElementById(
     "payButton"
@@ -1422,6 +2290,12 @@ async function createOrder(){
               installation_id:
                 installationId,
 
+<<<<<<< HEAD
+              install_secret:
+                installSecret,
+
+=======
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
               email:
                 email
             })
@@ -1632,8 +2506,25 @@ button.addEventListener(
         );
 
 
+<<<<<<< HEAD
+      /*
+       * Only server-generated order IDs are ever accepted. This
+       * keeps arbitrary input out of the page below.
+       */
+
+      const ORDER_ID_PATTERN =
+        /^kgp_pro_[0-9]{1,20}_[0-9a-f]{1,64}$/;
+
+
+      if (
+        !orderId ||
+        !ORDER_ID_PATTERN.test(
+          orderId
+        )
+=======
       if (
         !orderId
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       ) {
         return htmlResponse(
           `
@@ -1648,7 +2539,11 @@ text-align:center
 >
 <h1>KGP Placement Form Tracker</h1>
 <h2>Payment Error</h2>
+<<<<<<< HEAD
+<p>Missing or invalid order ID.</p>
+=======
 <p>Missing order ID.</p>
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 </body>
 </html>
 `,
@@ -1746,6 +2641,23 @@ text-align:center
           "SUCCESS";
 
 
+<<<<<<< HEAD
+        /*
+         * ----------------------------------------------------
+         * DELIBERATELY READ-ONLY
+         * ----------------------------------------------------
+         *
+         * This is a GET that a browser can trigger by refreshing
+         * or prefetching a link, so it must not activate anything.
+         * Activation happens only in /payment-webhook, which
+         * carries a signature we can verify.
+         *
+         * The license row may still be PENDING here; the webhook
+         * flips both the order and the license. We only report
+         * what Cashfree says.
+         * ----------------------------------------------------
+         */
+=======
         await db
           .prepare(
             `UPDATE orders
@@ -1764,6 +2676,7 @@ text-align:center
             orderId
           )
           .run();
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 
       } else if (
         pendingPayment
@@ -1922,7 +2835,11 @@ Order ID
 
 <br><br>
 
+<<<<<<< HEAD
+${escapeHtml(orderId)}
+=======
 ${orderId}
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 
 </div>
 
@@ -2224,7 +3141,49 @@ if (
             error:
               "Cashfree payment is not confirmed as successful",
           },
+<<<<<<< HEAD
+          400,
+          request
+        );
+      }
+
+
+      /*
+       * The confirmed payment must belong to this order. Without
+       * this the array lookup could match an unrelated payment.
+       */
+
+      if (
+        successfulPayment.order_id &&
+        successfulPayment.order_id !==
+          orderId
+      ) {
+
+        console.error(
+          "Payment/order mismatch:",
+          {
+            orderId,
+
+            paymentOrderId:
+              successfulPayment
+                .order_id,
+          }
+        );
+
+
+        return jsonResponse(
+          {
+            success:
+              false,
+
+            error:
+              "Payment does not belong to this order",
+          },
+          400,
+          request
+=======
           400
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         );
       }
 
@@ -2360,6 +3319,63 @@ if (
       }
 
 
+<<<<<<< HEAD
+      /*
+       * The confirmed payment must actually cover the order.
+       * Cashfree returns order_amount in rupees.
+       */
+
+      const expectedRupees =
+        Math.round(
+          PRO_PRICE_INR *
+          100
+        ) / 100;
+
+
+      const paidAmount =
+        successfulPayment
+          .payment_amount ??
+        successfulPayment
+          .order_amount;
+
+
+      if (
+        paidAmount !==
+          undefined &&
+        paidAmount !==
+          null &&
+        Number(paidAmount) <
+          expectedRupees
+      ) {
+
+        console.error(
+          "Webhook payment amount mismatch:",
+          {
+            orderId,
+
+            paidAmount,
+
+            expectedRupees,
+          }
+        );
+
+
+        return jsonResponse(
+          {
+            success:
+              false,
+
+            error:
+              "Payment amount does not match the order",
+          },
+          400,
+          request
+        );
+      }
+
+
+=======
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       const paidAt =
         Date.now();
 
@@ -2455,8 +3471,19 @@ if (
      *
      * Body:
      * {
+<<<<<<< HEAD
+     *   installation_id: "...",
+     *   install_secret: "..."
+     * }
+     *
+     * On an ACTIVE license the response also carries a signed
+     * entitlement token. The extension verifies that signature
+     * before unlocking PRO, so editing chrome.storage.local is no
+     * longer enough to spoof an unlock.
+=======
      *   installation_id: "..."
      * }
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
      * ========================================================
      */
 
@@ -2484,7 +3511,12 @@ if (
             error:
               "Invalid JSON body",
           },
+<<<<<<< HEAD
+          400,
+          request
+=======
           400
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         );
       }
 
@@ -2492,6 +3524,12 @@ if (
       const installationId =
         body?.installation_id;
 
+<<<<<<< HEAD
+      const installSecret =
+        body?.install_secret;
+
+=======
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 
       if (
         !isValidInstallationId(
@@ -2507,7 +3545,75 @@ if (
             error:
               "Invalid installation_id",
           },
+<<<<<<< HEAD
+          400,
+          request
+        );
+      }
+
+
+      /*
+       * Throttle per installation. This endpoint is unauthenticated
+       * for unregistered callers, so it needs a ceiling.
+       */
+
+      const rateOk =
+        await consumeRateLimit(
+          db,
+          `verify:${installationId}`,
+          60,
+          60 * 60 * 1000
+        );
+
+
+      if (!rateOk) {
+
+        return jsonResponse(
+          {
+            success:
+              false,
+
+            error:
+              "Too many verification attempts. Please try again later.",
+          },
+          429,
+          request
+        );
+      }
+
+
+      const secretCheck =
+        await verifyInstallSecret(
+          db,
+          installationId,
+          installSecret
+        );
+
+
+      /*
+       * "legacy" is allowed through: those installations have no
+       * secret on record yet. "deny" means an id is being used
+       * without its secret.
+       */
+
+      if (
+        secretCheck ===
+        "deny"
+      ) {
+
+        return jsonResponse(
+          {
+            success:
+              false,
+
+            error:
+              "Invalid installation credentials",
+          },
+          401,
+          request
+=======
           400
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         );
       }
 
@@ -2542,6 +3648,22 @@ if (
         !result.license_id
       ) {
 
+<<<<<<< HEAD
+        return jsonResponse(
+          {
+            success:
+              true,
+
+            pro:
+              false,
+
+            status:
+              "NOT_FOUND",
+          },
+          200,
+          request
+        );
+=======
         return jsonResponse({
           success:
             true,
@@ -2552,6 +3674,7 @@ if (
           status:
             "NOT_FOUND",
         });
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -2565,6 +3688,148 @@ if (
 
 
       /*
+<<<<<<< HEAD
+       * Update usage timestamps.
+       *
+       * These are coalesced to at most once every 10 minutes so a
+       * client cannot turn verification into unbounded D1 writes.
+       */
+
+      const TOUCH_INTERVAL_MS =
+        10 * 60 * 1000;
+
+
+      const stale =
+        await db
+          .prepare(
+            `SELECT
+               i.last_seen_at AS last_seen_at,
+               l.last_verified_at AS last_verified_at
+             FROM installations i
+             LEFT JOIN licenses l
+               ON i.license_id =
+                  l.license_id
+             WHERE i.installation_id = ?
+             LIMIT 1`
+          )
+          .bind(
+            installationId
+          )
+          .first();
+
+
+      const seenAgo =
+        now -
+        Number(
+          stale?.last_seen_at ||
+          0
+        );
+
+      const verifiedAgo =
+        now -
+        Number(
+          stale?.last_verified_at ||
+          0
+        );
+
+
+      if (
+        !stale ||
+        seenAgo >=
+          TOUCH_INTERVAL_MS
+      ) {
+
+        await db
+          .prepare(
+            `UPDATE installations
+             SET
+               last_seen_at = ?
+             WHERE installation_id = ?`
+          )
+          .bind(
+            now,
+            installationId
+          )
+          .run();
+      }
+
+
+      if (
+        verifiedAgo >=
+        TOUCH_INTERVAL_MS
+      ) {
+
+        await db
+          .prepare(
+            `UPDATE licenses
+             SET
+               last_verified_at = ?
+             WHERE license_id = ?`
+          )
+          .bind(
+            now,
+            result.license_id
+          )
+          .run();
+      }
+
+
+      /*
+       * Only ACTIVE licenses get a token. Anything else (PENDING,
+       * REVOKED) is reported as not pro with no token.
+       */
+
+      if (!isPro) {
+
+        return jsonResponse(
+          {
+            success:
+              true,
+
+            pro:
+              false,
+
+            status:
+              result.status,
+          },
+          200,
+          request
+        );
+      }
+
+
+      const licenseToken =
+        await issueLicenseToken(
+          result.license_id,
+          installationId,
+          env
+        );
+
+
+      return jsonResponse(
+        {
+          success:
+            true,
+
+          pro:
+            true,
+
+          status:
+            result.status,
+
+          license_token:
+            licenseToken,
+
+          expires_in:
+            Math.floor(
+              LICENSE_TOKEN_TTL_MS /
+              1000
+            ),
+        },
+        200,
+        request
+      );
+=======
        * Update usage timestamp.
        */
 
@@ -2606,6 +3871,7 @@ if (
         status:
           result.status,
       });
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
     }
 
 
@@ -2667,13 +3933,24 @@ if (
               "Invalid JSON body",
           },
           400
+<<<<<<< HEAD
+            request
+          );
+=======
         );
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
       const installationId =
         body?.installation_id;
 
+<<<<<<< HEAD
+      const installSecret =
+        body?.install_secret;
+
+=======
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 
       if (
         !isValidInstallationId(
@@ -2689,7 +3966,80 @@ if (
             error:
               "Invalid installation_id",
           },
+<<<<<<< HEAD
+          400,
+          request
+        );
+      }
+
+
+      /*
+       * Throttle restore attempts. This endpoint adopts licenses by
+       * verified email, so it is the most attractive one to hammer.
+       */
+
+      const restoreRateOk =
+        await consumeRateLimit(
+          db,
+          `restore:${getClientIp(request)}`,
+          20,
+          60 * 60 * 1000
+        );
+
+
+      if (!restoreRateOk) {
+
+        return jsonResponse(
+          {
+            success:
+              false,
+
+            error:
+              "Too many restore attempts. Please try again later.",
+          },
+          429,
+          request
+        );
+      }
+
+
+      /*
+       * Require proof of installation ownership before this browser
+       * can become the target of a license link.
+       */
+
+      const secretCheck =
+        await verifyInstallSecret(
+          db,
+          installationId,
+          installSecret
+        );
+
+
+      /*
+       * "legacy" is allowed through: those installations have no
+       * secret on record yet. "deny" means an id is being used
+       * without its secret.
+       */
+
+      if (
+        secretCheck ===
+        "deny"
+      ) {
+
+        return jsonResponse(
+          {
+            success:
+              false,
+
+            error:
+              "Invalid installation credentials",
+          },
+          401,
+          request
+=======
           400
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
         );
       }
 
@@ -2713,7 +4063,12 @@ if (
               "Missing Supabase access token",
           },
           401
+<<<<<<< HEAD
+            request
+          );
+=======
         );
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -2752,7 +4107,12 @@ if (
               "Unable to verify Supabase identity",
           },
           502
+<<<<<<< HEAD
+            request
+          );
+=======
         );
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -2772,7 +4132,12 @@ if (
               "Invalid or expired Supabase session",
           },
           401
+<<<<<<< HEAD
+            request
+          );
+=======
         );
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -2838,7 +4203,12 @@ if (
               "Your linked PRO license is not active.",
           },
           403
+<<<<<<< HEAD
+            request
+          );
+=======
         );
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -2898,7 +4268,12 @@ if (
               "No active PRO license was found for this email address.",
           },
           404
+<<<<<<< HEAD
+            request
+          );
+=======
         );
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -2977,7 +4352,12 @@ if (
                   "LICENSE_ALREADY_CLAIMED",
               },
               409
+<<<<<<< HEAD
+                request
+              );
+=======
             );
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
           }
         }
 
@@ -2998,7 +4378,12 @@ if (
               "LICENSE_OWNED_BY_ANOTHER_USER",
           },
           403
+<<<<<<< HEAD
+            request
+          );
+=======
         );
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -3048,7 +4433,12 @@ if (
               "INSTALLATION_ALREADY_LINKED",
           },
           409
+<<<<<<< HEAD
+            request
+          );
+=======
         );
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
       }
 
 
@@ -3205,6 +4595,41 @@ if (
         .run();
 
 
+<<<<<<< HEAD
+      return jsonResponse(
+        {
+          success:
+            true,
+
+          pro:
+            true,
+
+          status:
+            "ACTIVE",
+
+          license_id:
+            license.license_id,
+
+          installation_id:
+            installationId,
+
+          license_token:
+            await issueLicenseToken(
+              license.license_id,
+              installationId,
+              env
+            ),
+
+          expires_in:
+            Math.floor(
+              LICENSE_TOKEN_TTL_MS /
+              1000
+            ),
+        },
+        200,
+        request
+      );
+=======
       return jsonResponse({
         success:
           true,
@@ -3221,6 +4646,7 @@ if (
         installation_id:
           installationId,
       });
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
     }
 
 
