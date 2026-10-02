@@ -2,6 +2,7 @@ import {
 	env,
 	createExecutionContext,
 	waitOnExecutionContext,
+<<<<<<< HEAD
 } from "cloudflare:test";
 import { describe, it, expect, beforeAll } from "vitest";
 import worker from "../src";
@@ -364,5 +365,26 @@ describe("payment-return", () => {
 		const response = await call("/payment-return");
 
 		expect(response.status).toBe(400);
+=======
+	SELF,
+} from "cloudflare:test";
+import { describe, it, expect } from "vitest";
+import worker from "../src";
+
+describe("Hello World worker", () => {
+	it("responds with Hello World! (unit style)", async () => {
+		const request = new Request("http://example.com");
+		// Create an empty context to pass to `worker.fetch()`.
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env, ctx);
+		// Wait for all `Promise`s passed to `ctx.waitUntil()` to settle before running test assertions
+		await waitOnExecutionContext(ctx);
+		expect(await response.text()).toMatchInlineSnapshot(`"Hello World!"`);
+	});
+
+	it("responds with Hello World! (integration style)", async () => {
+		const response = await SELF.fetch("http://example.com");
+		expect(await response.text()).toMatchInlineSnapshot(`"Hello World!"`);
+>>>>>>> bcd3977b0ae6b33c83520b0978c1752219d88ef0
 	});
 });
