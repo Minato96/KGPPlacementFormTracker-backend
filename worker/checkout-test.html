@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>KGP Placement Form Tracker - Payment Test</title>
+
+  <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 60px auto;
+      padding: 20px;
+    }
+
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #status {
+      margin-top: 20px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>KGP Placement Form Tracker</h1>
+
+  <h2>PRO Sandbox Payment Test</h2>
+
+  <p>
+    This page is only for testing the Cashfree Sandbox payment flow.
+  </p>
+
+  <button id="payButton">
+    Test ₹1 Sandbox Payment
+  </button>
+
+  <div id="status"></div>
+
+  <script>
+    const cashfree = Cashfree({
+      mode: "sandbox"
+    });
+
+    const payButton = document.getElementById("payButton");
+    const status = document.getElementById("status");
+
+    payButton.addEventListener("click", async () => {
+      payButton.disabled = true;
+
+      status.textContent = "Creating Cashfree order...";
+
+      try {
+        const response = await fetch(
+          "http://127.0.0.1:8787/create-order",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              installation_id: "checkout-test-installation-003"
+            })
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(
+            data.error || "Unable to create Cashfree order"
+          );
+        }
+
+        status.textContent =
+          "Order created.\n\n" +
+          "Order ID: " +
+          data.order_id +
+          "\n\nOpening Cashfree Checkout...";
+
+        const checkoutOptions = {
+          paymentSessionId: data.payment_session_id,
+          redirectTarget: "_self"
+        };
+
+        cashfree.checkout(checkoutOptions);
+
+      } catch (error) {
+        console.error(error);
+
+        status.textContent =
+          "Payment initialization failed:\n\n" +
+          error.message;
+
+        payButton.disabled = false;
+      }
+    });
+  </script>
+
+</body>
+</html>

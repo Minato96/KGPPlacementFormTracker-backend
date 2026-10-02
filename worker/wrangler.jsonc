@@ -1,0 +1,13 @@
+{
+	"name": "kgp-placement-form-tracker-backend",
+	"main": "src/index.js",
+	"compatibility_date": "2026-09-30",
+	"d1_databases": [
+		{
+			"binding": "kgp_placement_form_tracker_db",
+			"database_name": "kgp-placement-form-tracker-db",
+			"database_id": "dbdee30a-b599-41fd-9058-e6ad5f8285a0",
+			"remote": true
+		}
+	]
+}
