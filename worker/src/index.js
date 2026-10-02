@@ -3752,9 +3752,9 @@ if (
             error:
               "Invalid JSON body",
           },
-          400
-            request
-          );
+          400,
+          request
+        );
       }
 
 
@@ -3871,9 +3871,9 @@ if (
             error:
               "Missing Supabase access token",
           },
-          401
-            request
-          );
+          401,
+          request
+        );
       }
 
 
@@ -3911,9 +3911,9 @@ if (
             error:
               "Unable to verify Supabase identity",
           },
-          502
-            request
-          );
+          502,
+          request
+        );
       }
 
 
@@ -3932,9 +3932,9 @@ if (
             error:
               "Invalid or expired Supabase session",
           },
-          401
-            request
-          );
+          401,
+          request
+        );
       }
 
 
@@ -3999,9 +3999,9 @@ if (
             error:
               "Your linked PRO license is not active.",
           },
-          403
-            request
-          );
+          403,
+          request
+        );
       }
 
 
@@ -4060,9 +4060,9 @@ if (
             error:
               "No active PRO license was found for this email address.",
           },
-          404
-            request
-          );
+          404,
+          request
+        );
       }
 
 
@@ -4140,9 +4140,9 @@ if (
                 code:
                   "LICENSE_ALREADY_CLAIMED",
               },
-              409
-                request
-              );
+              409,
+              request
+            );
           }
         }
 
@@ -4162,9 +4162,9 @@ if (
             code:
               "LICENSE_OWNED_BY_ANOTHER_USER",
           },
-          403
-            request
-          );
+          403,
+          request
+        );
       }
 
 
@@ -4213,9 +4213,9 @@ if (
             code:
               "INSTALLATION_ALREADY_LINKED",
           },
-          409
-            request
-          );
+          409,
+          request
+        );
       }
 
 
