@@ -129,10 +129,18 @@ function htmlResponse(
          *
          * connect-src must include 'self': the checkout page
          * calls back into this Worker to create the order.
+         *
+         * The Cashfree v3 SDK needs more than the obvious hosts.
+         * It fetches its own component payload from
+         * payments.cashfree.com/pgbillpayuiapi/..., and it hands
+         * the browser off by building a <form> and submitting it,
+         * so payments.cashfree.com has to appear in form-action as
+         * well as connect-src. Without both, the SDK loads but the
+         * redirect never happens and the payment page never opens.
          */
 
         "Content-Security-Policy":
-          "default-src 'none'; script-src https://sdk.cashfree.com 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self' https://api.cashfree.com https://sdk.cashfree.com; img-src 'self' https://sdk.cashfree.com data:; frame-src https://sdk.cashfree.com https://api.cashfree.com https://payments.cashfree.com; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+          "default-src 'none'; script-src https://sdk.cashfree.com 'unsafe-inline'; style-src 'unsafe-inline' https://sdk.cashfree.com; connect-src 'self' https://api.cashfree.com https://sdk.cashfree.com https://payments.cashfree.com; img-src 'self' https://sdk.cashfree.com https://payments.cashfree.com data:; font-src https://sdk.cashfree.com https://payments.cashfree.com data:; frame-src https://sdk.cashfree.com https://api.cashfree.com https://payments.cashfree.com; form-action 'self' https://payments.cashfree.com https://api.cashfree.com https://sdk.cashfree.com; base-uri 'none'; frame-ancestors 'none'",
 
         "X-Content-Type-Options":
           "nosniff",
@@ -2407,10 +2415,20 @@ async function startCheckout(){
 }
 
 
-button.addEventListener(
-  "click",
-  createOrder
-);
+/*
+ * Assign through onclick, not addEventListener.
+ *
+ * createOrder() swaps the button over to startCheckout() once the
+ * order exists, by assigning button.onclick. A listener registered
+ * with addEventListener is a *separate* slot and would keep firing
+ * on every later click, so the "Proceed to Payment" click both
+ * opened Cashfree and posted /create-order again — which the
+ * pending-order lock then rejected with "A PRO payment is already
+ * in progress", clobbering the button state.
+ */
+
+button.onclick =
+  createOrder;
 
 </script>
 
